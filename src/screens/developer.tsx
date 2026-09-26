@@ -1,10 +1,15 @@
-import { eur, monthYearFull, pct } from '../i18n/format.ts';
+import { eur, monthYearFull, pct, place } from '../i18n/format.ts';
 import { Icon, Money, Ring } from '../components/common.tsx';
 import { AllClear, ConstructionTable, SignalItem } from '../components/widgets.tsx';
 import type { ScreenProps } from './agency.tsx';
 import { Delta, sameDaysLabel } from './agency.tsx';
 
 export const TABLE_ROWS_PORTFOLIO = 6;
+
+/** Project name without the generic suffix, for tight spaces. */
+export function shortName(name: string): string {
+  return name.replace(/\s*\((Villa|Вилла)\)$/, '').replace(/\s+Residence$/, '');
+}
 export const TABLE_ROWS_FULL = 7;
 
 export function DeveloperPortfolio({ model, t, lang, open, onAllProjects }: ScreenProps & { onAllProjects: () => void }) {
@@ -13,6 +18,7 @@ export function DeveloperPortfolio({ model, t, lang, open, onAllProjects }: Scre
   const collectedShare = d.collectionsPlanEur > 0 ? d.collectionsEur / d.collectionsPlanEur : 0;
   const soldShare = u.total > 0 ? u.sold / u.total : 0;
   const atRisk = d.counts.risk + d.counts.delay;
+  const atRiskList = d.construction.filter((s) => s.status !== 'ok');
   const next = d.upcoming[0];
   const after = d.upcoming[1];
   const topSignal = d.signals[0];
@@ -85,36 +91,38 @@ export function DeveloperPortfolio({ model, t, lang, open, onAllProjects }: Scre
           </div>
         </div>
 
-        <div className="kpi">
+        <button className="kpi click" onClick={() => open({ kind: 'risks' })}>
           <div className="kpi-label ic">
             <span className="kicon a">
               <Icon name="alert" width={2.2} />
             </span>
             {t.delayRisk}
+            <Icon name="chevronRight" width={2.5} style={{ width: '1.625rem', height: '1.625rem', marginLeft: 'auto', color: 'var(--cyan)' }} />
           </div>
           <div className="kpi-main">
-            <div className="kpi-value">
-              {atRisk}
-              <span className="u">{t.inConstruction(d.counts.construction)}</span>
+            <div className="kpi-value">{atRisk}</div>
+            <div className="risk-list">
+              {atRiskList.slice(0, 3).map((s) => (
+                <div key={s.project.id} className={s.status === 'delay' ? 'r' : 'a'}>
+                  <span className="dot" />
+                  <span className="nm">{shortName(s.project.name)}</span>
+                  <span className="dd">{s.slipDays > 0 ? `+${s.slipDays} ${t.daysShort}` : `${Math.round(s.deviationPts)} ${t.pts}`}</span>
+                </div>
+              ))}
+              {atRiskList.length > 3 && <div className="more">+{atRiskList.length - 3}</div>}
             </div>
           </div>
           <div className="kpi-sub">
-            <span className="a">
-              {t.risk} {d.counts.risk}
-            </span>{' '}
-            ·{' '}
-            <span className="r">
-              {t.delay} {d.counts.delay}
-            </span>
+            {t.inConstructionLong(d.counts.construction)} · <span className="c">{t.showCauses}</span>
           </div>
-        </div>
+        </button>
       </div>
 
       <div className="row" style={{ flex: '1 1 0' }}>
         <div className="panel" style={{ flex: '1.78 1 0' }}>
           <div className="panel-head">
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-              <div className="panel-title" style={{ fontSize: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '1.125rem', flexWrap: 'wrap' }}>
+              <div className="panel-title" style={{ fontSize: '2rem' }}>
                 {t.constructionTitle}
               </div>
               <div className="panel-note">
@@ -135,7 +143,7 @@ export function DeveloperPortfolio({ model, t, lang, open, onAllProjects }: Scre
           />
         </div>
 
-        <div style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0, minHeight: 0 }}>
+        <div style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', gap: '0.875rem', minWidth: 0, minHeight: 0 }}>
           <div className="panel compact" style={{ flex: '1.3 1 0' }}>
             <div className="panel-head">
               <div className="panel-title">{t.nextHandover}</div>
@@ -144,14 +152,14 @@ export function DeveloperPortfolio({ model, t, lang, open, onAllProjects }: Scre
               <button className="hcard" style={{ textAlign: 'left' }} onClick={() => open({ kind: 'project', id: next.project.id })}>
                 <div className="nm">{next.project.name}</div>
                 <div className="mid">
-                  <Icon name="calendar" width={1.8} style={{ width: 44, height: 44, color: '#8fb3de', flex: '0 0 auto' }} />
+                  <Icon name="calendar" width={1.8} style={{ width: '2.75rem', height: '2.75rem', color: '#8fb3de', flex: '0 0 auto' }} />
                   <div>
                     <div className="dt">{monthYearFull(next.forecastHandover, lang)}</div>
                     <div className="dts">
-                      {next.project.city}, {next.project.district} · {next.slipDays > 0 ? t.handoverShift : t.handoverOnTrack}
+                      {place(next.project.city, next.project.district)} · {next.slipDays > 0 ? t.handoverShift : t.handoverOnTrack}
                     </div>
                   </div>
-                  <Ring share={next.factPct / 100} size={78}>
+                  <Ring share={next.factPct / 100} size={4.5}>
                     {Math.round(next.factPct)}%
                   </Ring>
                 </div>
@@ -228,8 +236,8 @@ export function DeveloperConstruction({
   return (
     <div className="panel" style={{ flex: '1 1 0' }}>
       <div className="panel-head">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-          <div className="panel-title" style={{ fontSize: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '1.125rem', flexWrap: 'wrap' }}>
+          <div className="panel-title" style={{ fontSize: '2rem' }}>
             {t.constructionTitle}
           </div>
           <div className="panel-note">

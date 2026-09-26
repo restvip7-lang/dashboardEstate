@@ -226,6 +226,22 @@ const projects: Project[] = projectSeeds.map((p) => ({
   responsible: p.responsible,
 }));
 
+/** What the site team writes in the report's comment: the cause of a lag. */
+const REPORT_NOTES: Record<string, { ru: string; en: string }> = {
+  p04: {
+    ru: 'Подрядчик не укомплектовал бригады на каркас, поставка арматуры задержана на 3 недели.',
+    en: 'Contractor is short of frame crews; rebar delivery is three weeks late.',
+  },
+  p02: {
+    ru: 'Задержка поставки окон и отделочных материалов от поставщика.',
+    en: 'Windows and finishing materials are delayed by the supplier.',
+  },
+  p17: {
+    ru: 'Перенесено подключение инженерных сетей к городским коммуникациям.',
+    en: 'Connection of the utilities to the city network has been postponed.',
+  },
+};
+
 const reports: ConstructionReport[] = [];
 for (const seed of projectSeeds) {
   if (seed.lifecycle !== 'construction') continue;
@@ -241,6 +257,7 @@ for (const seed of projectSeeds) {
       date,
       stagePct: applyLag(project.baseline, plannedStagePct(project.baseline, date), lag),
       forecastHandover: addDays(seed.handover, Math.round((seed.slip ?? 0) * share)),
+      ...(w <= 2 && REPORT_NOTES[seed.id] ? { note: REPORT_NOTES[seed.id] } : {}),
     });
   }
 }

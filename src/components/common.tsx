@@ -12,13 +12,14 @@ export function Money({ text }: { text: string }) {
   );
 }
 
-export function Ring({ share, children, size = 112 }: { share: number; children: ReactNode; size?: number }) {
+/** Progress ring; `size` is in rem so it scales with the screen. */
+export function Ring({ share, children, size = 7 }: { share: number; children: ReactNode; size?: number }) {
   const r = 48;
   const c = 2 * Math.PI * r;
   const filled = Math.max(0, Math.min(1, share)) * c;
   return (
-    <div className="ring" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 112 112" style={{ width: size, height: size }}>
+    <div className="ring" style={{ width: `${size}rem`, height: `${size}rem` }}>
+      <svg viewBox="0 0 112 112">
         <circle cx="56" cy="56" r={r} stroke="#1b3150" strokeWidth="12" fill="none" />
         <circle
           cx="56"

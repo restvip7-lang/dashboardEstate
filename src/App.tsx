@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Lang } from './data/types.ts';
 import { buildModel } from './metrics/model.ts';
 import { date, monthYearFull } from './i18n/format.ts';
@@ -29,7 +29,9 @@ const CURSOR_HIDE_MS = 3000;
 const params = new URLSearchParams(window.location.search);
 const DATA_URL = params.get('data') ?? './data/demo.json';
 const INTERVAL_SEC = Math.max(5, Number(params.get('interval') ?? 25));
-const START_PAUSED = params.get('autoplay') === '0';
+/** Phones, tablets and narrow windows scroll instead of rotating. */
+const COMPACT = window.matchMedia('(max-width: 1000px), (max-aspect-ratio: 5/4)').matches;
+const START_PAUSED = params.get('autoplay') === '0' || (COMPACT && params.get('autoplay') !== '1');
 
 function initialLang(): Lang {
   const fromUrl = params.get('lang');
@@ -41,18 +43,6 @@ function initialLang(): Lang {
     // Storage may be unavailable (private mode); fall back to Russian.
   }
   return 'ru';
-}
-
-/** Scales the fixed 1920×1080 stage to the window, letterboxing if needed. */
-function useStageScale(): number {
-  const [scale, setScale] = useState(1);
-  useLayoutEffect(() => {
-    const update = () => setScale(Math.min(window.innerWidth / 1920, window.innerHeight / 1080));
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-  return scale;
 }
 
 export function App() {
@@ -67,7 +57,6 @@ export function App() {
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [cursorHidden, setCursorHidden] = useState(false);
   const lastInput = useRef(Date.now());
-  const scale = useStageScale();
   const t = STRINGS[lang];
 
   const pages = model ? Math.max(1, Math.ceil(model.developer.construction.length / TABLE_ROWS_FULL)) : 1;
@@ -101,6 +90,10 @@ export function App() {
     const timer = window.setTimeout(() => go(stepIndex + 1), INTERVAL_SEC * 1000);
     return () => window.clearTimeout(timer);
   }, [paused, drawer, stepIndex, go]);
+
+  useEffect(() => {
+    if (COMPACT) window.scrollTo(0, 0);
+  }, [stepIndex]);
 
   // Idle: close detail panels, hide the cursor.
   useEffect(() => {
@@ -149,9 +142,7 @@ export function App() {
   if (!model || !data) {
     return (
       <div className="viewport">
-        <div className="app-stage" style={{ transform: `scale(${scale})` }}>
-          <div className="center-msg">{error ? `${t.loadError}: ${error}` : t.loading}</div>
-        </div>
+        <div className="center-msg">{error ? `${t.loadError}: ${error}` : t.loading}</div>
       </div>
     );
   }
@@ -165,63 +156,62 @@ export function App() {
   };
 
   return (
-    <div className={`viewport ${cursorHidden ? 'hidden-cursor' : ''}`}>
-      <div className="app-stage" style={{ transform: `scale(${scale})` }}>
-        <div className="screen">
-          <Header
-            t={t}
-            lang={lang}
-            mode={step.mode}
-            period={monthYearFull(model.asOf, lang)}
-            demo={model.demo}
-            onMode={goMode}
-            onLang={setLang}
+    <div className={`viewport ${cursorHidden && !COMPACT ? 'hidden-cursor' : ''}`}>
+      <div className="screen">
+        <Header
+          t={t}
+          lang={lang}
+          mode={step.mode}
+          period={monthYearFull(model.asOf, lang)}
+          demo={model.demo}
+          onMode={goMode}
+          onLang={setLang}
+        />
+        <h1 className="page-title">{titles[step.screen]}</h1>
+
+        {step.screen === 'agency-overview' && <AgencyOverview {...screenProps} />}
+        {step.screen === 'agency-team' && <AgencyTeam {...screenProps} />}
+        {step.screen === 'developer-portfolio' && (
+          <DeveloperPortfolio {...screenProps} onAllProjects={() => goScreen('developer-construction')} />
+        )}
+        {step.screen === 'developer-construction' && (
+          <DeveloperConstruction
+            {...screenProps}
+            page={step.page ?? 0}
+            pages={pages}
+            onPage={(page) => go(steps.findIndex((s) => s.screen === 'developer-construction' && s.page === page))}
           />
-          <h1 className="page-title">{titles[step.screen]}</h1>
+        )}
 
-          {step.screen === 'agency-overview' && <AgencyOverview {...screenProps} />}
-          {step.screen === 'agency-team' && <AgencyTeam {...screenProps} />}
-          {step.screen === 'developer-portfolio' && (
-            <DeveloperPortfolio {...screenProps} onAllProjects={() => goScreen('developer-construction')} />
-          )}
-          {step.screen === 'developer-construction' && (
-            <DeveloperConstruction
-              {...screenProps}
-              page={step.page ?? 0}
-              pages={pages}
-              onPage={(page) => go(steps.findIndex((s) => s.screen === 'developer-construction' && s.page === page))}
-            />
-          )}
+        <Footer
+          t={t}
+          screens={SCREENS.length}
+          active={SCREENS.indexOf(step.screen)}
+          onScreen={(i) => goScreen(SCREENS[i])}
+          paused={paused || drawer !== null}
+          intervalSec={INTERVAL_SEC}
+          stepKey={`${stepIndex}-${paused}-${drawer ? 1 : 0}`}
+          dataAt={date(model.asOf)}
+          loadedAt={loadedAt ? loadedAt.toTimeString().slice(0, 5) : '—'}
+          problems={model.problems.length}
+        />
 
-          <Footer
-            t={t}
-            screens={SCREENS.length}
-            active={SCREENS.indexOf(step.screen)}
-            onScreen={(i) => goScreen(SCREENS[i])}
-            paused={paused || drawer !== null}
-            intervalSec={INTERVAL_SEC}
-            stepKey={`${stepIndex}-${paused}-${drawer ? 1 : 0}`}
-            dataAt={date(model.asOf)}
-            loadedAt={loadedAt ? loadedAt.toTimeString().slice(0, 5) : '—'}
-            problems={model.problems.length}
-          />
+        {offline && (
+          <div className="banner">
+            {t.offline} {date(model.asOf)}
+          </div>
+        )}
 
-          {offline && (
-            <div className="banner">
-              {t.offline} {date(model.asOf)}
-            </div>
-          )}
-
-          <Drawers
-            state={drawer}
-            model={model}
-            issues={data.issues}
-            managers={data.managers}
-            t={t}
-            lang={lang}
-            onClose={() => setDrawer(null)}
-          />
-        </div>
+        <Drawers
+          state={drawer}
+          model={model}
+          issues={data.issues}
+          managers={data.managers}
+          t={t}
+          lang={lang}
+          onClose={() => setDrawer(null)}
+          onOpen={setDrawer}
+        />
       </div>
     </div>
   );

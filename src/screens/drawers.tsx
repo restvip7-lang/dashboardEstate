@@ -1,10 +1,15 @@
 import type { Issue, Lang, Manager } from '../data/types.ts';
 import type { DashboardModel } from '../metrics/model.ts';
-import { date, dayMonth, eur, eurFull, monthYearFull } from '../i18n/format.ts';
+import { date, dayMonth, eur, eurFull, monthYearFull, place } from '../i18n/format.ts';
 import type { Strings } from '../i18n/strings.ts';
 import { Drawer } from '../components/Frame.tsx';
 
-export type DrawerState = { kind: 'receivables' } | { kind: 'debt' } | { kind: 'project'; id: string } | null;
+export type DrawerState =
+  | { kind: 'receivables' }
+  | { kind: 'debt' }
+  | { kind: 'risks' }
+  | { kind: 'project'; id: string }
+  | null;
 
 export function Drawers({
   state,
@@ -14,6 +19,7 @@ export function Drawers({
   t,
   lang,
   onClose,
+  onOpen,
 }: {
   state: DrawerState;
   model: DashboardModel;
@@ -22,6 +28,7 @@ export function Drawers({
   t: Strings;
   lang: Lang;
   onClose: () => void;
+  onOpen: (d: DrawerState) => void;
 }) {
   const managerName = (id: string) => managers.find((m) => m.id === id)?.name ?? id;
   const projectName = (id?: string) => model.developer.construction.find((s) => s.project.id === id)?.project.name;
@@ -100,6 +107,7 @@ export function Drawers({
     ? ps.status === 'ok' && !ps.stale
       ? t.noRisk
       : [
+          ps.report.note?.[lang] ?? '',
           ps.deviationPts < -0.5 ? `${Math.round(ps.deviationPts)} ${t.pts}` : '',
           ps.slipDays > 0 ? `${t.forecast}: +${t.days(ps.slipDays)}` : '',
           ps.stale ? `${t.lastReport}: ${t.days(ps.reportAgeDays)}` : '',
@@ -135,7 +143,7 @@ export function Drawers({
             <div className="dl">
               <span className="l">{t.location}</span>
               <span className="v">
-                {ps.project.city}, {ps.project.district}
+                {place(ps.project.city, ps.project.district)}
               </span>
             </div>
             <div className="dl">
@@ -180,10 +188,52 @@ export function Drawers({
     </Drawer>
   );
 
+  const atRisk = model.developer.construction.filter((s) => s.status !== 'ok' || s.stale);
+  const issueFor = (id: string) =>
+    issues.find((i) => i.key === `project:${id}:schedule`) ?? issues.find((i) => i.key === `project:${id}:report`);
+  const risks = (
+    <Drawer open={state?.kind === 'risks'} title={t.risksTitle} onClose={onClose} closeLabel={t.close}>
+      {atRisk.map((s) => {
+        const cls = s.status === 'delay' ? 'danger' : 'warn';
+        const is = issueFor(s.project.id);
+        return (
+          <div key={s.project.id} className={`riskcard ${cls}`}>
+            <div className="rc-head">
+              <span className="nm">{s.project.name}</span>
+              <span className={`status ${s.status === 'ok' ? 'ok' : cls}`}>
+                <span className="sdot" />
+                {s.slipDays > 0 ? `+${t.days(s.slipDays)}` : s.status === 'ok' ? t.onTrack : `${Math.round(s.deviationPts)} ${t.pts}`}
+              </span>
+            </div>
+            <div className="rc-meta">
+              {place(s.project.city, s.project.district)} · {t.stages[s.stage]} ·{' '}
+              {t.planVs(Math.round(s.factPct), Math.round(s.planPct), Math.round(s.deviationPts))}
+            </div>
+            <div className="rc-meta">
+              {t.deadline(monthYearFull(s.project.plannedHandover, lang), monthYearFull(s.forecastHandover, lang))}
+            </div>
+            <div className="rc-cause">
+              <b>{t.cause}:</b> {s.report.note?.[lang] ?? t.noCause}
+            </div>
+            {s.stale && <div className="rc-stale">{t.reportStaleNote(date(s.report.date), s.reportAgeDays)}</div>}
+            <div className="rc-owner">
+              <b>{is?.owner ?? s.project.responsible}</b> ·{' '}
+              {is ? `${is.action[lang]} · ${t.until} ${dayMonth(is.due)}` : t.noAction}
+            </div>
+            <button className="rc-open" onClick={() => onOpen({ kind: 'project', id: s.project.id })}>
+              {t.openCard}
+            </button>
+          </div>
+        );
+      })}
+    </Drawer>
+  );
+
   return (
     <>
       {receivables}
       {debtDrawer}
+      {risks}
       {project}
     </>
   );

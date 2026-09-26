@@ -81,3 +81,8 @@ export function pluralRu(n: number, forms: [string, string, string]): string {
   if (b === 1) return forms[0];
   return forms[2];
 }
+
+/** "Аланья, Махмутлар", or just "Сиде" when the district is the city itself. */
+export function place(city: string, district: string): string {
+  return !district || district === city ? city : `${city}, ${district}`;
+}

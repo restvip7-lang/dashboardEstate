@@ -96,7 +96,7 @@ export function AgencyOverview({ model, t, lang, open }: ScreenProps) {
         <button className="kpi click" onClick={() => open({ kind: 'receivables' })}>
           <div className="kpi-label">
             {t.receivable}
-            <Icon name="chevronRight" width={2.5} style={{ width: 26, height: 26, marginLeft: 'auto', color: 'var(--cyan)' }} />
+            <Icon name="chevronRight" width={2.5} style={{ width: '1.625rem', height: '1.625rem', marginLeft: 'auto', color: 'var(--cyan)' }} />
           </div>
           <div className="kpi-main">
             <div className="kpi-value">
@@ -349,7 +349,7 @@ export function AgencyTeam({ model, t, lang }: ScreenProps) {
                 <div className="p top">★</div>
                 <div className="n">
                   {yearLeader.manager.name}{' '}
-                  <span style={{ fontSize: 18, color: 'var(--text-dim)', fontWeight: 600 }}>· {t.yearLeader}</span>
+                  <span style={{ fontSize: '1.125rem', color: 'var(--text-dim)', fontWeight: 600 }}>· {t.yearLeader}</span>
                 </div>
                 <div className={`pl ${(yearLeader.shareOfPlan ?? 1) < 1 ? 'lo' : ''}`}>
                   {yearLeader.shareOfPlan !== undefined ? pct(yearLeader.shareOfPlan) : '—'}
