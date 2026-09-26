@@ -125,18 +125,25 @@ export function Icon({ name, style, width = 2 }: { name: IconName; style?: React
   );
 }
 
-/**
- * Company mark drawn after the STAYPROPERTY renders. Replace with the official
- * logo file (public/logo.svg) when it is provided.
- */
+/** STAYPROPERTY brand colours, sampled from the official mark. */
+export const BRAND_RED = '#BF1E25';
+export const BRAND_BLUE = '#115E86';
+
+/** The official STAYPROPERTY mark, traced to vector so it stays sharp on 4K. */
+export function BrandMark() {
+  return (
+    <svg viewBox="244 272 591 535" aria-hidden="true">
+      <polygon points="244,568 539,272 835,568 736,568 539,371 391,518 581,709 532,758 342,568" fill={BRAND_RED} />
+      <polygon points="539,469 736,666 736,807 582,807 680,709 490,518" fill={BRAND_BLUE} />
+      <polygon points="342,666 482,807 342,807" fill={BRAND_BLUE} />
+    </svg>
+  );
+}
+
 export function Logo() {
   return (
     <div className="logo">
-      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M7 24 L24 8 L41 24" stroke="#d7262f" strokeWidth="7" fill="none" />
-        <path d="M7 24 L7 28 L24 28" stroke="#d7262f" strokeWidth="7" fill="none" />
-        <path d="M24 28 L41 28 L41 40 L20 40" stroke="#1d3a78" strokeWidth="7" fill="none" />
-      </svg>
+      <BrandMark />
       <div className="logo-text">
         <span className="s">STAY</span>
         <span className="p">PROPERTY</span>
